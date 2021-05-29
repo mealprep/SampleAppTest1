@@ -1,243 +1,105 @@
-# flask-base
-[![Circle CI](https://circleci.com/gh/hack4impact/flask-base.svg?style=svg)](https://circleci.com/gh/hack4impact/flask-base) 
-[![Code Climate](https://codeclimate.com/github/hack4impact/flask-base/badges/gpa.svg)](https://codeclimate.com/github/hack4impact/flask-base/coverage)
-[![Issue Count](https://codeclimate.com/github/hack4impact/flask-base/badges/issue_count.svg)](https://codeclimate.com/github/hack4impact/flask-base) ![python3.x](https://img.shields.io/badge/python-3.x-brightgreen.svg)  ![python2.x](https://img.shields.io/badge/python-2.x-yellow.svg)
+## AWS CodeBuild Samples
 
-![flask-base](readme_media/logo.png)
+Utilities and samples for building on CodeBuild
 
-A Flask application template with the boilerplate code already done for you.
+### Sample App: Simple Calculator Service
 
+![CodeBuild badge](https://codebuild.us-west-2.amazonaws.com/badges?uuid=eyJlbmNyeXB0ZWREYXRhIjoieDJkVmY0VXl2bVRjaFdBYkRzZExTNS9ZTUZVQXE4Sy9GMkh1dk1sOE54VkJKcEowOGdXcnJiZDlGL1RGeXJGUmR5UHlWT1psaks2N1dKbk5qUSt6L1BnPSIsIml2UGFyYW1ldGVyU3BlYyI6InhST3ZVeEZ6bkxLWC9IZG4iLCJtYXRlcmlhbFNldFNlcmlhbCI6MX0%3D&branch=master)
 
-**Documentation available at [http://hack4impact.github.io/flask-base](http://hack4impact.github.io/flask-base).**
+Simple Node.js Express-based web service that demonstrates continuous integration with AWS CodeBuild, AWS CodeCommit, and GitHub, as well as continuous deployment with AWS CodeDeploy/CodePipeline.  This application was written for demo purposes only, and is definitely not production ready.
 
-## What's included?
+### CI Tooling (Buildspecs)
 
-* Blueprints
-* User and permissions management
-* Flask-SQLAlchemy for databases
-* Flask-WTF for forms
-* Flask-Assets for asset management and SCSS compilation
-* Flask-Mail for sending emails
-* gzip compression
-* Redis Queue for handling asynchronous tasks
-* ZXCVBN password strength checker
-* CKEditor for editing pages
+The buildspecs folder contains the following buildspec files for use with AWS CodeBuild:
+* build.yml: Basic npm-based build with unit tests and code coverage report.
+* shrinkwrap.yml: Upgrade npm dependencies and push an updated shrinkwrap file to source code repository.
+* sonarqube.yml: Run static code analysis against a SonarQube endpoint, with the endpoint and token stored in SSM Parameter Store.
+* build-test-suite-1.yml and build-test-suite-2.yml: Parallelize the unit tests into two separate projects.
+* environment.yml: Build a Docker image with cached npm dependencies
+* build-with-image-cache.yml: Use the cached npm dependencies from a custom Docker image.
 
-## Demos
+### CI Tooling (Glue)
 
-Home Page:
+The ci_tools folder contains the following tools for use with AWS Lambda and Amazon CloudWatch Events to hook together the end-to-end CI process:
+* trigger_codebuild.js: Lambda function to start a CodeBuild build.
+* slack_notifications.js: Lambda function to post CodeBuild build notifications into a Slack channel.
+* email_notifications.js: Lambda function to send CodeBuild build notification emails via Amazon SES.
+* codecommit_pr_notifications: Lambda function to start a CodeBuild build for CodeCommit pull request notifications, and comment on a CodeCommit pull request for CodeCommit build notifications.
+* cwe-rule-configuration/branch_ci.json: CloudWatch Events rule pattern to start a CodeBuild build for every push to the master branch of a CodeCommit repository.
+* cwe-rule-configuration/slack_event_pattern.json: CloudWatch Events rule pattern to notify Slack for failed CodeBuild builds.
+* cwe-rule-configuration/nightly_build_input.json: CloudWatch Events target input to start a CodeBuild build with a specific buildspec override and project name.
 
-![home](readme_media/home.gif "home")
+### CD Tooling
 
-Registering User:
+Contains an appspec.yml file and deploy_scripts folder for deploying the service with AWS CodeDeploy.
 
-![registering](readme_media/register.gif "register")
+## CloudFormation Templates
 
-Admin Editing Page:
+Create a CodeCommit repository called 'aws-codebuild-samples' and push this sample code into the repo.  Then spin up all of the above easily with CloudFormation.
 
-![edit page](readme_media/editpage.gif "editpage")
-
-Admin Editing Users:
-
-![edit user](readme_media/edituser.gif "edituser")
-
-
-## Setting up
-
-##### Create your own repository from this Template
-
-Navigate to the [main project page](https://github.com/hack4impact/flask-base) and click the big, green "Use this template" button at the top right of the page. Give your new repository a name and save it.
-
-##### Clone the repository 
-
+### Continuous Deployment
+Set up continuous deployment with a CodePipeline pipeline:
 ```
-$ git clone https://github.com/YOUR_USERNAME/REPO_NAME.git
-$ cd REPO_NAME
+aws cloudformation deploy --stack-name aws-codebuild-samples --template-file cloudformation/continuous-deployment.yml --capabilities CAPABILITY_NAMED_IAM
+
+aws cloudformation describe-stacks --stack-name aws-codebuild-samples --query 'Stacks[0].Outputs[?OutputKey==`PipelineConsoleUrl`].OutputValue' --output text
 ```
 
-##### Initialize a virtual environment
-
-Windows:
+Wait for the pipeline to finish deploying, then access the Test and Prod stack applications:
 ```
-$ python3 -m venv venv
-$ venv\Scripts\activate.bat
-```
+aws cloudformation describe-stacks --stack-name aws-codebuild-samples-test-stack --query 'Stacks[0].Outputs[?OutputKey==`Url`].OutputValue' --output text
 
-Unix/MacOS:
-```
-$ python3 -m venv venv
-$ source venv/bin/activate
-```
-Learn more in [the documentation](https://docs.python.org/3/library/venv.html#creating-virtual-environments).
-
-Note: if you are using a python before 3.3, it doesn't come with venv. Install [virtualenv](https://docs.python-guide.org/dev/virtualenvs/#lower-level-virtualenv) with pip instead.
-
-##### (If you're on a Mac) Make sure xcode tools are installed
-
-```
-$ xcode-select --install
+aws cloudformation describe-stacks --stack-name aws-codebuild-samples-prod-stack --query 'Stacks[0].Outputs[?OutputKey==`Url`].OutputValue' --output text
 ```
 
-##### Add Environment Variables
+### Continuous Integration: Nightly Checks
 
-Create a file called `config.env` that contains environment variables. **Very important: do not include the `config.env` file in any commits. This should remain private.** You will manually maintain this file locally, and keep it in sync on your host.
-
-Variables declared in file have the following format: `ENVIRONMENT_VARIABLE=value`. You may also wrap values in double quotes like `ENVIRONMENT_VARIABLE="value with spaces"`.
-
-1. In order for Flask to run, there must be a `SECRET_KEY` variable declared. Generating one is simple with Python 3:
-
-   ```
-   $ python3 -c "import secrets; print(secrets.token_hex(16))"
-   ```
-
-   This will give you a 32-character string. Copy this string and add it to your `config.env`:
-
-   ```
-   SECRET_KEY=Generated_Random_String
-   ```
-
-2. The mailing environment variables can be set as the following.
-   We recommend using [Sendgrid](https://sendgrid.com) for a mailing SMTP server, but anything else will work as well.
-
-   ```
-   MAIL_USERNAME=SendgridUsername
-   MAIL_PASSWORD=SendgridPassword
-   ```
-
-Other useful variables include:
-
-| Variable        | Default   | Discussion  |
-| --------------- |-------------| -----|
-| `ADMIN_EMAIL`   | `flask-base-admin@example.com` | email for your first admin account |
-| `ADMIN_PASSWORD`| `password`                     | password for your first admin account |
-| `DATABASE_URL`  | `data-dev.sqlite`              | Database URL. Can be Postgres, sqlite, etc. |
-| `REDISTOGO_URL` | `http://localhost:6379`        | [Redis To Go](https://redistogo.com) URL or any redis server url |
-| `RAYGUN_APIKEY` | `None`                         | API key for [Raygun](https://raygun.com/raygun-providers/python), a crash and performance monitoring service |
-| `FLASK_CONFIG`  | `default`                      | can be `development`, `production`, `default`, `heroku`, `unix`, or `testing`. Most of the time you will use `development` or `production`. |
-
-
-##### Install the dependencies
+Choose an email address for receiving email notifications.  Then, [verify the email address in SES](https://us-west-2.console.aws.amazon.com/ses/home?region=us-west-2#verified-senders-email:) before setting up the CloudFormation stack.
 
 ```
-$ pip install -r requirements.txt
+mkdir build
+
+S3_BUCKET=$(aws cloudformation describe-stacks --stack-name aws-codebuild-samples --query 'Stacks[0].Outputs[?OutputKey==`ArtifactsBucket`].OutputValue' --output text)
+
+aws cloudformation package --template-file cloudformation/continuous-integration-nightly-checks.yml --s3-bucket $S3_BUCKET --force-upload --output-template-file build/continuous-integration-nightly-checks.yml
+
+aws cloudformation deploy --stack-name aws-codebuild-samples-nightly-checks --template-file build/continuous-integration-nightly-checks.yml --capabilities CAPABILITY_NAMED_IAM --parameter-overrides NotificationEmailAddress="example@example.com"
 ```
 
-##### Other dependencies for running locally
+### Continuous Integration: Branch Checks
 
-You need [Redis](http://redis.io/), and [Sass](http://sass-lang.com/). Chances are, these commands will work:
+Configure the webhook in Slack:
+1. Navigate to https://<your-team-domain>.slack.com/apps
+1. Search for and select "Incoming Webhooks".
+1. Click "Add Configuration".
+1. Choose a channel and click "Add Slash Command Integration".
+1. Copy the Webhook URL from the integration settings.
+1. Store the token in Parameter Store: `aws ssm put-parameter --name codebuild-samples-slack-webhook --type SecureString --value <webhook URL>` (Note: you will need to set `cli_follow_urlparam = false` in your AWS CLI config file first)
 
-
-**Sass:**
-
+Then spin up the stack in CloudFormation:
 ```
-$ gem install sass
-```
+mkdir build
 
-**Redis:**
+S3_BUCKET=$(aws cloudformation describe-stacks --stack-name aws-codebuild-samples --query 'Stacks[0].Outputs[?OutputKey==`ArtifactsBucket`].OutputValue' --output text)
 
-_Mac (using [homebrew](http://brew.sh/)):_
+aws cloudformation package --template-file cloudformation/continuous-integration-branch-checks.yml --s3-bucket $S3_BUCKET --force-upload --output-template-file build/continuous-integration-branch-checks.yml
 
-```
-$ brew install redis
-```
-
-_Linux:_
-
-```
-$ sudo apt-get install redis-server
+aws cloudformation deploy --stack-name aws-codebuild-samples-branch-checks --template-file build/continuous-integration-branch-checks.yml --capabilities CAPABILITY_NAMED_IAM
 ```
 
-You will also need to install **PostgresQL**
+### Continuous Integration: Pull Request Checks
 
-_Mac (using homebrew):_
-
+Spin up the stack in CloudFormation:
 ```
-brew install postgresql
+mkdir build
+
+S3_BUCKET=$(aws cloudformation describe-stacks --stack-name aws-codebuild-samples --query 'Stacks[0].Outputs[?OutputKey==`ArtifactsBucket`].OutputValue' --output text)
+
+aws cloudformation package --template-file cloudformation/continuous-integration-pull-request-checks.yml --s3-bucket $S3_BUCKET --force-upload --output-template-file build/continuous-integration-pull-request-checks.yml
+
+aws cloudformation deploy --stack-name aws-codebuild-samples-pull-request-checks --template-file build/continuous-integration-pull-request-checks.yml --capabilities CAPABILITY_NAMED_IAM
 ```
-
-_Linux (based on this [issue](https://github.com/hack4impact/flask-base/issues/96)):_
-
-```
-sudo apt-get install libpq-dev
-```
-
-
-##### Create the database
-
-```
-$ python manage.py recreate_db
-```
-
-##### Other setup (e.g. creating roles in database)
-
-```
-$ python manage.py setup_dev
-```
-
-Note that this will create an admin user with email and password specified by the `ADMIN_EMAIL` and `ADMIN_PASSWORD` config variables. If not specified, they are both `flask-base-admin@example.com` and `password` respectively.
-
-##### [Optional] Add fake data to the database
-
-```
-$ python manage.py add_fake_data
-```
-
-## Running the app
-
-```
-$ source env/bin/activate
-$ honcho start -e config.env -f Local
-```
-
-For Windows users having issues with binding to a redis port locally, refer to [this issue](https://github.com/hack4impact/flask-base/issues/132).
-
-## Gettin up and running with Docker and docker-compose:
-
-##### Clone the repository 
-```
-$ git clone https://github.com/YOUR_USERNAME/REPO_NAME.git
-$ cd REPO_NAME
-```
-##### Create and run the images:
-
-```
-$ docker-compose up
-```
-
-##### Create database and initial data for development:
-
-```
-$ docker-compose exec server ./init_database.sh
-```
-
-It will deploy 5 docker images:
-
-- server: Flask app running in [http://localhost:5000](http://localhost:5000).
-- worker: Worker ready to get tasks.
-- postgres: Postgres SQL isolated from the app.
-- adminer: Web client for database management, running in [http://localhost:8080](http://localhost:8080).
-- redis: Redis SQL isolated from the app
-
-
-## Formatting code
-
-Before you submit changes to flask-base, you may want to autoformat your code with `python manage.py format`.
-
-
-## Contributing
-
-Contributions are welcome! Please refer to our [Code of Conduct](./CONDUCT.md) for more information.
-
-## Documentation Changes
-
-To make changes to the documentation refer to the [Mkdocs documentation](http://www.mkdocs.org/#installation) for setup.
-
-To create a new documentation page, add a file to the `docs/` directory and edit `mkdocs.yml` to reference the file.
-
-When the new files are merged into `master` and pushed to github. Run `mkdocs gh-deploy` to update the online documentation.
-
-## Related
-https://medium.freecodecamp.com/how-we-got-a-2-year-old-repo-trending-on-github-in-just-48-hours-12151039d78b#.se9jwnfk5
 
 ## License
-[MIT License](LICENSE.md)
+
+This library is licensed under the Apache 2.0 License.
