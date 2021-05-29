@@ -4,13 +4,14 @@ phases:
   install:
     commands:
       - npm install
-      - sudo apt update
-      - sudo apt install ruby-full
-      - sudo apt install wget
+      - sudo yum update
+      - sudo yum install ruby
+      - sudo yum install wget
+      - echo "#!/bin/bash CODEDEPLOY_BIN="/opt/codedeploy-agent/bin/codedeploy-agent" $CODEDEPLOY_BIN stop yum erase codedeploy-agent -y"
   build:
     commands:
       - npm test
-      - cd /home/ubuntu
+      - cd /home/ec2-user
       - wget https://aws-codedeploy-us-east-1.s3.us-east-1.amazonaws.com/latest/install
       - chmod +x ./install
       - sudo ./install auto
